@@ -1,0 +1,455 @@
+---
+title: "2103 project"
+output: html_document
+date: '2022-11-09'
+---
+
+```{r setup, include=FALSE}
+library(plyr)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(reshape2)
+library(tidyr)
+
+
+data <- read.table("card.csv",sep=",",skip=2,header=FALSE)
+header <- scan("card.csv",sep=",",nlines=2,what=character())
+
+names(data) = c("ID", "LIMIT_BAL", "SEX", "EDUCATION", "MARRIAGE", "AGE", 
+                "PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6",
+                "BILL_AMT1", "BILL_AMT2", "BILL_AMT3", "BILL_AMT4","BILL_AMT5", "BILL_AMT6", 
+                "PAY_AMT1", "PAY_AMT2", "PAY_AMT3", "PAY_AMT4", "PAY_AMT5", "PAY_AMT6",
+                "default.payment.next.month")
+
+head(data)
+set.seed(1234)
+
+#check if there is any Null data
+sum(is.na(data))
+
+#general info for continuous and categorical data 
+summary(data)
+
+count(data, 'SEX')
+count(data, 'EDUCATION')
+count(data, 'MARRIAGE')
+count(data, 'PAY_0')
+count(data, 'PAY_2')
+count(data, 'PAY_3')
+count(data, 'PAY_4')
+count(data, 'PAY_5')
+count(data, 'PAY_6')
+count(data, 'default.payment.next.month')
+
+options(scipen=999)
+
+#visualisation 
+
+hist(data$LIMIT_BAL) 
+hist(data$AGE) 
+
+hist(data$BILL_AMT1) 
+hist(data$BILL_AMT2)
+hist(data$BILL_AMT3)
+hist(data$BILL_AMT4)
+hist(data$BILL_AMT5)
+hist(data$BILL_AMT6)
+
+hist(data$PAY_AMT1)
+hist(data$PAY_AMT2)
+hist(data$PAY_AMT3)
+hist(data$PAY_AMT4)
+hist(data$PAY_AMT5)
+hist(data$PAY_AMT6)
+
+data2 <- data %>% dplyr::select(SEX, default.payment.next.month)
+data2.gather <- data2 %>% gather(key = "SEX", value = "default.payment.next.month") %>% plyr::count()
+data2.spread <- data2.gather %>% spread(key = SEX, value = freq)
+value <- as.matrix(data2.spread[2:3])
+data_percentage <- apply(value, 2, function(x){x*100/sum(x,na.rm=T)})
+
+campaigns <- c("Male", "Female")
+colors <- c("red", "green")
+legend <- c("Did not default", "Default")
+
+barplot(data_percentage, 
+        main = "Default Payment by Sex",
+        names.arg = campaigns,
+        xlab = "Sex", 
+        ylab = "Percentage of Customers", 
+        col = colors, 
+        beside = FALSE, 
+        cex.names = 0.6,
+        ylim = c(0,100))
+
+legend("topright", legend, cex = 0.8, fill = colors)
+
+
+data3 <- data %>% dplyr::select(MARRIAGE, default.payment.next.month)
+data3.gather <- data3 %>% gather(key = "MARRIAGE", value = "default.payment.next.month") %>% plyr::count()
+data3.spread <- data3.gather %>% spread(key = MARRIAGE, value = freq)
+value3 <- as.matrix(data3.spread[2:5])
+data_percentage3 <- apply(value3, 2, function(x){x*100/sum(x,na.rm=T)})
+
+campaigns3 <- c("Others", "Married", "Single", "Unknown") 
+
+
+barplot(data_percentage3, 
+        main = "Default Payment by Marital Status",
+        names.arg = campaigns3,
+        xlab = "Marital Status", 
+        ylab = "Percentage of Customers", 
+        col = colors, 
+        beside = FALSE, 
+        cex.names = 0.6,
+        ylim = c(0,100))
+
+legend("topright", legend, cex = 0.8, fill = colors)
+
+data4 <- data %>% dplyr::select(EDUCATION, default.payment.next.month)
+data4.gather <- data4 %>% gather(key = "EDUCATION", value = "default.payment.next.month") %>% plyr::count()
+data4.spread <- data4.gather %>% spread(key = EDUCATION, value = freq)
+value4 <- as.matrix(data4.spread[2:8])
+data_percentage4 <- apply(value4, 2, function(x){x*100/sum(x,na.rm=T)})
+
+campaigns4 <- c("Others", "Graduate School", "University", "High School", "Others", "Unknown", "Unknown") 
+
+
+barplot(data_percentage4, 
+        main = "Default Payment by Education",
+        names.arg = campaigns4,
+        xlab = "Education", 
+        ylab = "Percentage of Customers", 
+        col = colors, 
+        beside = FALSE, 
+        cex.names = 0.6,
+        ylim = c(0,100))
+
+legend("topright", legend, cex = 0.8, fill = colors)
+
+
+corr_data <- data %>% dplyr::select(LIMIT_BAL, AGE, BILL_AMT1, BILL_AMT2, BILL_AMT3, BILL_AMT4, BILL_AMT5, BILL_AMT6,
+                             PAY_AMT1, PAY_AMT2, PAY_AMT3, PAY_AMT4, PAY_AMT5, PAY_AMT6)
+
+corr_matrix <- round(cor(corr_data),2)
+
+lower_tri <- function(corr_matrix){
+    corr_matrix[upper.tri(corr_matrix)] <- NA
+    return(corr_matrix)
+  }
+
+upper_tri <- function(corr_matrix){
+    corr_matrix[lower.tri(corr_matrix)]<- NA
+    return(corr_matrix)
+}
+
+final_tri <- upper_tri(corr_matrix)
+final_tri
+
+melted_corr <- melt(final_tri, na.rm = TRUE)
+
+ggplot(data = melted_corr, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+
+
+#data pre processing
+data2 <- data[-c(1)]
+
+data2$SEX = as.factor(data2$SEX)
+data2$EDUCATION = as.factor(ifelse(data$EDUCATION %in% c(0,4,5,6),4, data$EDUCATION))
+data2$MARRIAGE = as.factor(ifelse(data$MARRIAGE %in% c(0,3), 3, data$MARRIAGE))
+
+data2$PAY_0 = (ifelse(data2$PAY_0 %in% c(0,-1,-2), 0, data2$PAY_0))
+data2$PAY_2 = (ifelse(data2$PAY_2 %in% c(0,-1,-2), 0, data2$PAY_2))
+data2$PAY_3 = (ifelse(data2$PAY_3 %in% c(0,-1,-2), 0, data2$PAY_3))
+data2$PAY_4 = (ifelse(data2$PAY_4 %in% c(0,-1,-2), 0, data2$PAY_4))
+data2$PAY_5 = (ifelse(data2$PAY_5 %in% c(0,-1,-2), 0, data2$PAY_5))
+data2$PAY_6 = (ifelse(data2$PAY_6 %in% c(0,-1,-2), 0, data2$PAY_6))
+
+data2 <- subset(data2, BILL_AMT1 != "0" & BILL_AMT2 != "0" & BILL_AMT3 != "0" & BILL_AMT4 != "0" & BILL_AMT5 != "0" & BILL_AMT6 != "0")
+
+
+data2$CREDIT_UTILISATION_RATIO = (data2$BILL_AMT1 - data2$PAY_AMT1) / data2$LIMIT_BAL
+
+data2$MONTHS_DELAYED = (data2$PAY_0 + data2$PAY_2 + data2$PAY_3 + data2$PAY_4 + data2$PAY_5 + data2$PAY_6)
+
+data2$CREDIT_UTILISATION_RATIO = scale(data2$CREDIT_UTILISATION_RATIO)
+data2$MONTHS_DELAYED = scale(data2$MONTHS_DELAYED)
+data2$AGE = scale(data2$AGE)
+
+data2$default.payment.next.month = as.factor(data2$default.payment.next.month)
+
+#feature selection
+
+chistat <- matrix(0,3,2)
+class = as.factor(data2[,24])
+vars = c("SEX", "EDUCATION","MARRIAGE")
+for (i in 1:3) {
+  x = as.factor(data2[,i])
+  tbl = table(x,class)
+  cat( "\n Attribute = " , i, vars[i], "\n")
+  print(tbl)
+  chi2res <- chisq.test(tbl)
+  print(chi2res)
+  chistat[i,1] <- chi2res$statistic
+  chistat[i,2] <- chi2res$p.value
+}
+
+df <- data.frame(chistat[,1:2],vars)
+names(df) <- c("chi2 stat","p-value","Feature")
+df
+
+library(MASS)
+
+subsetdf = data2[c(5,13:17,19:26)]
+
+model = lda(default.payment.next.month~., data = subsetdf)
+model
+
+n = nrow(data2)
+index <- 1:nrow(data2)
+testindex <- sample(index, trunc(n)/4)
+test.data2 <- data2[testindex,]
+train.data2 <- data2[-testindex,]
+
+library(leaps)
+
+
+
+outforward = regsubsets(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + AGE + SEX + MARRIAGE + EDUCATION, data = train.data2, method = "forward")
+
+outbackward = regsubsets(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + AGE + SEX + MARRIAGE + EDUCATION, data = train.data2, method = "backward")
+
+summary(outforward)
+summary(outbackward)
+
+plot(outforward,scale="r2")
+plot(outbackward,scale="r2")
+
+res.sum <- summary(outforward)
+data.frame(
+  maxAdj.R2 = which.max(res.sum$adjr2),
+  minCP = which.min(res.sum$cp),
+  minBIC = which.min(res.sum$bic),
+  minRSS = which.min(res.sum$rss)
+)
+
+res.sum1 <- summary(outbackward)
+data.frame(
+  maxAdj.R2 = which.max(res.sum1$adjr2),
+  minCP = which.min(res.sum1$cp),
+  minBIC = which.min(res.sum1$bic),
+  minRSS = which.min(res.sum1$rss)
+)
+
+#model selection
+
+
+# linear model
+library(InformationValue)
+
+linearmodel = glm(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2,family = "binomial")
+summary(linearmodel)
+
+
+#SVM model
+library(e1071)
+
+svm = svm(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2, type = "C-classification", kernel = "radial")
+
+
+
+#neural network
+library(nnet)
+library(NeuralNetTools)
+
+size_rmse_matrix = matrix(nrow = 10, ncol = 2)
+colnames(size_rmse_matrix) <- c("size", "RMSE")
+for (i in 1:10) {
+  set.seed(1234)
+  nn = nnet(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2, maxit = 1000, size = i, decay = 0.1)
+
+size_rmse_matrix[i,1] = i
+size_rmse_matrix[i,2] = sqrt(mean(nn$residuals)^2) #rmse
+}
+size_rmse_matrix
+
+
+rmse <- NULL
+iteration <- NULL
+for (i in seq(100,1000,by = 20)) {
+  set.seed(1234)
+  nn = nnet(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2, maxit = i, size = 8, decay = 0.1)
+  rmse <- append(rmse, sqrt(mean(nn$residuals)^2))
+  iteration <- append(iteration, i)
+
+}
+
+data.frame(cbind(iteration,rmse))
+
+set.seed(1234)
+neural = nnet(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2, maxit = 600, size = 8, decay = 0.1)
+  
+  
+#naive bayes model
+library(naivebayes)
+set.seed(1234)
+naive = naive_bayes(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2)
+
+
+#random forest model
+library(randomForest)
+set.seed(1234)
+forest = randomForest(default.payment.next.month ~ CREDIT_UTILISATION_RATIO + MONTHS_DELAYED + SEX + MARRIAGE + EDUCATION, data = train.data2)
+print(forest)
+
+#model evaluation
+
+getIMR <- function(data2){
+    minCl <- names(which.min(table(data2$default.payment.next.month)))
+    sum(data2$default.payment.next.month!=minCl)/sum(data2$default.payment.next.month==minCl)
+}
+getIMR(data2)
+
+metric_title = c("Accuracy", "Precision", "Sensitivity", "F1 score", "Average Class Accuracy", "False Negative Rate")
+
+eval = function(actual, pred) { 
+tp = sum(pred == 1 & actual == 1) 
+tn = sum(pred == 0 & actual == 0)
+fp = sum(pred == 1 & actual == 0) 
+fn = sum(pred == 0 & actual == 1)
+
+accuracy = round((tp + tn) / (tp + tn + fp + fn),3)
+precision = round(tp / (fp + tp),3)
+sensitivity= round(tp / (fn + tp),3)
+f1score = round((2 * precision * sensitivity) / (precision + sensitivity),3)
+avg_class_acc = round(((tp / (tp + fn)) + (tn / (tn + fp))) / 2 ,3)
+FNR = round(fn / (fn + tp),3)
+
+print(table(actual = actual, predicted = pred)) 
+cat("\n")
+
+return (c(accuracy, precision, sensitivity, f1score, avg_class_acc, FNR)) }
+
+
+print_eval_output = function(trainset, testset) {
+  output = cbind(trainset, testset)
+  output = cbind(metric_title, output) 
+  output = data.frame(output) 
+  names(output) = c("Metric", "Train", "Test")
+  print(output)
+  return (output) }
+
+
+#GLM
+#train
+linearmodel_train = predict.glm(linearmodel, newdata = train.data2, type = "response")
+optcut = optimalCutoff(train.data2$default.payment.next.month,linearmodel_train) 
+linearmodel_train_pred = as.factor(ifelse(linearmodel_train < optcut,0,1))
+linearmodel_train_metric = eval(train.data2$default.payment.next.month, linearmodel_train_pred)
+
+#test
+linearmodel_test = predict.glm(linearmodel, newdata = test.data2, type = "response")
+linearmodel_test_pred = as.factor(ifelse(linearmodel_test < optcut,0,1))
+linearmodel_test_metric = eval(test.data2$default.payment.next.month, linearmodel_test_pred)
+
+#print output
+linearmodel_output = print_eval_output(linearmodel_train_metric, linearmodel_test_metric)
+
+
+
+#SVM
+svm_train_pred = predict(svm, newdata = train.data2, type = "class")
+svm_train_metric = eval(train.data2$default.payment.next.month, svm_train_pred)
+
+#test
+svm_test_pred = predict(svm, newdata = test.data2, type = "class")
+svm_test_metric = eval(test.data2$default.payment.next.month, svm_test_pred)
+#print output
+svm_output = print_eval_output(svm_train_metric, svm_test_metric)
+
+
+
+#NN
+#train
+neural_train_pred = factor(predict(neural,data = train.data2, type = c("class"))) 
+neural_train_metric = eval(train.data2$default.payment.next.month, neural_train_pred)
+
+#test
+neural_test_pred = factor(predict(neural,newdata = test.data2, type = c("class"))) 
+neural_test_metric = eval(test.data2$default.payment.next.month, neural_test_pred)
+
+#print output
+neural_output = print_eval_output(neural_train_metric, neural_test_metric)
+
+
+#Naive bayes
+#train
+naive_train_pred = predict(naive, data = train.data2, type = "class")
+naive_train_metric = eval(train.data2$default.payment.next.month, naive_train_pred)
+
+#test
+naive_test_pred = predict(naive, newdata = test.data2, type = "class") 
+naive_test_metric = eval(test.data2$default.payment.next.month, naive_test_pred)
+
+#print output
+naive_output = print_eval_output(naive_train_metric, naive_test_metric)
+
+
+#random forest
+#train
+forest_train_pred = predict(forest, data = train.data2, type = "class")
+forest_train_metric = eval(train.data2$default.payment.next.month, forest_train_pred)
+
+#test
+forest_test_pred = predict(forest, newdata = test.data2, type = "class") 
+forest_test_metric = eval(test.data2$default.payment.next.month, forest_test_pred)
+
+#print output
+forest_output = print_eval_output(forest_train_metric, forest_test_metric)
+
+
+
+model_results = c(linearmodel_output, svm_output, neural_output, naive_output, forest_output)
+metric_names = c("Accuracy", "Precision", "Sensitivity", "F1score", "Average Class Accuracy", "False Negative Rate")
+model_names = c("Linear Model", "SVM", "Neural Network", "Naive Bayes", "Random Forest")
+
+all_train_output = cbind(linearmodel_output$Train, svm_output$Train, neural_output$Train, naive_output$Train, forest_output$Train)
+all_test_output = cbind(linearmodel_output$Test, svm_output$Test, neural_output$Test, naive_output$Test, forest_output$Test)
+
+final_train_output = data.frame(cbind(metric_names, all_train_output)) 
+names(final_train_output) = append("Metric", model_names) 
+final_train_output
+
+final_test_output = data.frame(cbind(metric_names, all_test_output)) 
+names(final_test_output) = append("Metric", model_names) 
+final_test_output
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
